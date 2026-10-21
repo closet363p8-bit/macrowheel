@@ -194,8 +194,12 @@ function move(e){ const t=(e.touches&&e.touches[0])||e; const r=card.getBounding
 
 $('cls').onclick = () => { if(tg) tg.close(); else window.close(); };
 $('buy').onclick = () => {
-  if (tg && bot){ try{ tg.openTelegramLink('https://t.me/'+bot+'?start=tariffs'); return; }catch(e){} }
-  if (tg) tg.close();
+  const b = bot || 'MacroVPN_official_bot';
+  const link = 'https://t.me/'+b+'?start=tariffs';
+  try{ tg.HapticFeedback.impactOccurred('medium'); }catch(e){}
+  try{ if (tg && tg.openTelegramLink) tg.openTelegramLink(link); else window.location.href = link; }catch(e){ window.location.href = link; }
+  // закрываем окно, чтобы человек оказался в чате, где бот уже показывает тарифы
+  setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 350);
 };
 </script>
 </body>

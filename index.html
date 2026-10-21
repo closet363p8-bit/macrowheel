@@ -51,6 +51,8 @@ const N = SECTORS.length, A = Math.PI*2/N;
 
 const params = new URLSearchParams(location.search);
 const wantDays = parseInt(params.get('d')||'0',10);
+const cd = parseInt(params.get('cd')||'0',10);
+const botName = (params.get('b')||'').replace('@','');
 const cands = SECTORS.map((s,i)=>s.d===wantDays?i:-1).filter(i=>i>=0);
 const target = cands.length ? cands[Math.floor(Math.random()*cands.length)] : 1;
 
@@ -113,11 +115,35 @@ function confetti(){
   }
 }
 
+const WEEK = 7*24*3600;
+function saveSpin(){
+  const v = String(Math.floor(Date.now()/1000));
+  try{ localStorage.setItem('wl', v); }catch(e){}
+  try{ tg.CloudStorage.setItem('wl', v); }catch(e){}
+}
+function readSpin(cb){
+  let local = 0; try{ local = parseInt(localStorage.getItem('wl')||'0',10)||0; }catch(e){}
+  let done = false; const fin = c => { if(done) return; done = true; cb(Math.max(local, c||0)); };
+  try{ tg.CloudStorage.getItem('wl', (err,val)=>fin(err?0:parseInt(val||'0',10))); setTimeout(()=>fin(0), 1500); }
+  catch(e){ fin(0); }
+}
+let claimed=false;
+function claim(){
+  if(claimed) return; claimed=true;
+  saveSpin();
+  const link='https://t.me/'+botName+'?start=wheelwin';
+  try{ if(tg && tg.openTelegramLink) tg.openTelegramLink(link); else window.location.href=link; }catch(e){ window.location.href=link; }
+  setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 400);
+}
+function waitText(sec){
+  const d=Math.floor(sec/86400), h=Math.floor((sec%86400)/3600);
+  return d? d+' дн. '+h+' ч.' : Math.max(h,1)+' ч.';
+}
 function finish(){
   const s = SECTORS[target], res = document.getElementById('res');
   document.getElementById('sub').textContent = '';
   if (s.d>0){
-    res.innerHTML = '🎉 Выигрыш: '+s.t+'<small>Дни уже добавлены к твоему доступу</small>';
+    res.innerHTML = '🎉 Выигрыш: '+s.t+'<small>Бот сейчас добавит дни к твоему доступу</small>';
     confetti(); buzz('heavy');
   } else {
     res.innerHTML = 'Не повезло 😔<small>Попробуй ещё через неделю</small>';
@@ -125,7 +151,9 @@ function finish(){
   }
   res.classList.add('show');
   const b = document.getElementById('close'); b.style.display='block';
-  b.onclick = () => { if(tg) tg.close(); else window.close(); };
+  b.textContent = s.d>0 ? 'Забрать приз' : 'Готово';
+  b.onclick = claim;
+  setTimeout(claim, 2600);
 }
 
 function spin(){
@@ -144,7 +172,22 @@ function spin(){
 }
 window.addEventListener('resize',fit);
 fit();
-setTimeout(spin,500);
+function locked(sec){
+  document.getElementById('sub').textContent='';
+  const res=document.getElementById('res');
+  res.innerHTML='⏳ Следующее вращение через '+waitText(sec)+'<small>Одна попытка в неделю</small>';
+  res.classList.add('show');
+  const b=document.getElementById('close'); b.style.display='block'; b.textContent='Закрыть';
+  b.onclick=()=>{ if(tg) tg.close(); else window.close(); };
+}
+if (cd>0){
+  locked(cd);
+} else {
+  readSpin(last=>{
+    const left = WEEK - (Math.floor(Date.now()/1000) - last);
+    if (last && left>0) locked(left); else setTimeout(spin,300);
+  });
+}
 </script>
 </body>
 </html>
